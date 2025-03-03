@@ -1,4 +1,3 @@
-
 volumes:
   certs:
     driver: local
@@ -11,6 +10,8 @@ volumes:
   filebeatdata01:
     driver: local
   logstashdata01:
+    driver: local
+  entsearchdata:
     driver: local
 
 networks:
@@ -51,6 +52,12 @@ services:
           "  - name: kibana\n"\
           "    dns:\n"\
           "      - kibana\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: enterprise-search\n"\
+          "    dns:\n"\
+          "      - enterprise-search\n"\
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
@@ -149,3 +156,24 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+
+  enterprise-search:
+    depends_on:
+      es01:
+        condition: service_healthy
+    image: docker.elastic.co/enterprise-search/enterprise-search:${STACK_VERSION}
+    labels:
+      co.elastic.logs/module: enterprise-search
+    volumes:
+      - certs:/usr/share/enterprise-search/config/certs
+      - entsearchdata:/usr/share/enterprise-search/data
+    ports:
+      - ${ENTERPRISE_SEARCH_PORT}:3002
+    environment:
+      - ent_search.auth.source=standard
+      - ELASTICSEARCH_HOST=https://es01:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITY=config/certs/ca/ca.crt
+      - secret_management.encryption_keys=["${ENCRYPTION_KEY}"]
+      - allow_es_settings_modification=true
